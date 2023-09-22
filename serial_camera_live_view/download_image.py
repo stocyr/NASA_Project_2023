@@ -16,16 +16,20 @@ port_matched = False
 for port_info in available_ports:
     # Check if the port's VID (Vendor ID) and PID (Product ID) match the desired values
     if port_info.vid == desired_vendor_id and port_info.pid == desired_product_id:
-        serial_port_name = port_info.device
-        port_matched = True
-        break
+        if port_matched:
+            print(f'Found second idential hardware on {port_info.device}, only connecting to the first one')
+            break
+        else:
+            print(f'Found hardware on {port_info.device}.')
+            serial_port_name = port_info.device
+            port_matched = True
 
 # Check if a matching port was found
 if port_matched:
     try:
         # Open the matching serial port
         serial_port = serial.Serial(serial_port_name, baudrate=115200, timeout=1)
-        print(f"Connected to {serial_port_name}")
+        print(f"Connected to {serial_port_name}.")
         
         # Now you can read from and write to 'ser' as needed
     except serial.SerialException as e:
