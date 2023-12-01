@@ -21,22 +21,44 @@
 //  Fast clock --- 1 hour = 5 min = 1/12 of an hour
 //  one "milli" -- 1ms
 
-#define SpeedFactor 1 // = times faster
+float Speed_up_factor = 1.0f; // = times faster
 
 //////////////////////////////////////////////////////////////////////////
 
-#define one_sec 1000          // one second = 1000 millis
-#define one_min 60 * one_sec  // one minute of time
-#define one_hour 60 * one_min // one hour of time
-#define one_day 24 * one_hour // one day time
+const uint32_t one_sec = 1000;          // one second = 1000 millis
+const uint32_t one_min = 60 * one_sec;  // one minute of time
+const uint32_t one_hour = 60 * one_min; // one hour of time
+const uint32_t one_day = 24 * one_hour; // one day time
 
-//************** Defining when to enter the phases
-#define Water_phase_start_time (((one_sec * 30) / 1000) / SpeedFactor) // go to Water Phase after 30 seconds
-#define Mix_phase_start_time (((one_min * 1) / 1000) / SpeedFactor)    // go to Mixing Phase after 1 min
-#define Grow_phase_start_time (((one_min * 2) / 1000) / SpeedFactor)   //"
-#define Dry_phase_start_time (((one_min * 3) / 1000) / SpeedFactor)    //"
+//************** Define the phases
+enum PHASE
+{
+    WAITING_PHASE,
+    WATER_PHASE,
+    MIX_PHASE,
+    GROW_PHASE,
+    DRY_PHASE
+};
 
-//************** Defining the IOs
+//************** Define the duration of the phases
+const int Waiting_phase_duration = 30 * one_sec;
+const int Water_phase_duration = 30 * one_sec;
+const int Mix_phase_duration = 1 * one_min;
+const int Grow_phase_duration = 1 * one_min;
+// const int Dry_phase_duration = 1 * one_min;  // This phase never ends
+
+//************** Define when to enter the phases (only change the durations above!)
+const uint32_t Waiting_phase_start_time = 0;
+const uint32_t Water_phase_start_time = Waiting_phase_start_time + (Waiting_phase_duration / 1000.0) / Speed_up_factor;
+const uint32_t Mix_phase_start_time = Water_phase_start_time + (Water_phase_duration / 1000.0) / Speed_up_factor;
+const uint32_t Grow_phase_start_time = Mix_phase_start_time + (Mix_phase_duration / 1000.0) / Speed_up_factor;
+const uint32_t Dry_phase_start_time = Grow_phase_start_time + (Grow_phase_duration / 1000.0) / Speed_up_factor;
+
+//************** Define constants
+const int SERVO_ANGLE_CLOSED = 170;
+const int TEMPERATURE_UPPER_LIMIT = 40; // Temperaturlimite die nicht üebrschritten werden darf. Wird geprüft bevor der Vibrationsmotor angeschaltet wird
+
+//************** Define the IOs
 #define LED_PIN IO7
 #define WATERPUMP_PIN IO6
 #define AIRPUMP_F_PIN IO5
@@ -46,9 +68,9 @@
 #define SERVOPOWER_PIN IO1
 
 //************** Define the default Times for the Routines (may get changed in different Phases)
-uint32_t Photo_time = ((one_sec * 20) / SpeedFactor);     // takes a photo every 20 seconds per default
-uint32_t Vibration_time = ((one_sec * 20) / SpeedFactor); // vibrates every 20 seconds per default
-uint32_t Airpump_time = ((one_sec * 5) / SpeedFactor);    // Changes between pumping forward, backwards and waiting every 5 sec (if not changed in Airpump Routine)
+uint32_t Photo_time = ((one_sec * 20) / Speed_up_factor);     // takes a photo every 20 seconds per default
+uint32_t Vibration_time = ((one_sec * 20) / Speed_up_factor); // vibrates every 20 seconds per default
+uint32_t Airpump_time = ((one_sec * 5) / Speed_up_factor);    // Changes between pumping forward, backwards and waiting every 5 sec (if not changed in Airpump Routine)
 
 //************** Von Howel bruachen wir nicht
 int sensor1count = 0; // counter of times the sensor has been accessed
@@ -78,18 +100,14 @@ void Flying()
     //   of your program
     //****************************************************************
 
-    //************** Constants
-    const int SERVO_ANGLE_CLOSED = 170;
-    const int TEMPERATURE_UPPER_LIMIT = 40; // Temperaturlimite die nicht üebrschritten werden darf. Wird geprüft bevor der Vibrationsmotor angeschaltet wird
-
     //************** Setup Servo
     Servo myservo;                    // initialize servo
     myservo.attach(SERVOCONTROL_PIN); // attach it to IO SERVOCONTROL_PIN
     int servoangle;                   // initialize angle variable to read out later
 
     //************** Boolean to control if the Routines are triggered (may get changed in different Phases)
-    boolean Airpump_Acces = false;
-    boolean Vibration_Acces = false;
+    boolean Airpump_enable = false;
+    boolean Vibration_enable = false;
 
     //************** Initializing some values
     int Airpumpcycle = 0; // definiert ob die Pumpe vorwärts rückwärts oder gar nicht läuft
@@ -143,24 +161,23 @@ void Flying()
         //********************Check what phase we are in and set the phase variable accordingly
         if (t < Water_phase_start_time)
         {
-            phase = 0;
-            initializeWaitingPhase();
+            phase = WAITING_PHASE;
         }
         else if ((Water_phase_start_time <= t) && (t < Mix_phase_start_time))
         {
-            phase = 1;
+            phase = WATER_PHASE;
         }
         else if ((Mix_phase_start_time <= t) && (t < Grow_phase_start_time))
         {
-            phase = 2;
+            phase = MIX_PHASE;
         }
         else if ((Grow_phase_start_time <= t) && (t < Dry_phase_start_time))
         {
-            phase = 3;
+            phase = GROW_PHASE;
         }
-        else if (Dry_phase_start_time <= t)
+        else if (t >= Dry_phase_start_time)
         {
-            phase = 4;
+            phase = DRY_PHASE;
         }
 
         ////////////////////////////////////////////////////////////////////
@@ -168,7 +185,7 @@ void Flying()
         ////////////////////////////////////////////////////////////////////
         switch (phase)
         {
-        case 1: //**********WATERPHASE*****************************************
+        case 1: //********* WATERPHASE ****************************************
 
             //*****Making sure the gate to the drychamber is closed before turning waterpump on
             digitalWrite(SERVOPOWER_PIN, LOW);
@@ -184,35 +201,35 @@ void Flying()
             Serial.println("Waterpump OFF");
 
             //*******Set new Accesses:
-            Airpump_Acces = false;   // in this phase the airpump should not turn on
-            Vibration_Acces = false; // in this phase the vibration motor should not turn on
+            Airpump_enable = false;   // in this phase the airpump should not turn on
+            Vibration_enable = false; // in this phase the vibration motor should not turn on
 
             break;
 
-        case 2: //**********MIXPHASE********************************************
+        case 2: //********* MIXPHASE *******************************************
 
             //*****Set new times for the Mixing phase
             Vibration_time = 20 * one_sec; // Vibrate every 10 Seconds
             Photo_time = 20 * one_sec;     // take photo every 10 seconds
 
             //*******Set new Accesses:
-            Airpump_Acces = false;  // in this phase the airpump should not turn on
-            Vibration_Acces = true; // the vibration motor should turn on!
+            Airpump_enable = false;  // in this phase the airpump should not turn on
+            Vibration_enable = true; // the vibration motor should turn on!
 
             break;
 
-        case 3: //**********GROWPHASE*******************************************
+        case 3: //********* GROWPHASE ******************************************
 
             //*****Set new times for the Growing phase
             Photo_time = 20 * one_sec;
 
             //*******Set new Acces:
-            Airpump_Acces = true;    // theairpump should turn on!
-            Vibration_Acces = false; // in this phase the vibration morot should not turn on
+            Airpump_enable = true;    // theairpump should turn on!
+            Vibration_enable = false; // in this phase the vibration morot should not turn on
 
             break;
 
-        case 4: //**********DRYPHASE*********************************************
+        case 4: //********* DRYPHASE ********************************************
 
             //****Check if the Gate is already open
             digitalWrite(SERVOPOWER_PIN, LOW); // give power to servo
@@ -228,8 +245,8 @@ void Flying()
             Photo_time = 30 * one_sec;
 
             //*******Set new Accesses:
-            Airpump_Acces = false;
-            Vibration_Acces = false;
+            Airpump_enable = false;
+            Vibration_enable = false;
 
             //******Making sure that the airpump is off when switching phase (could be running when switich phase )
             digitalWrite(AIRPUMP_F_PIN, HIGH); //
@@ -314,7 +331,7 @@ void Flying()
         //**********************************************************************
         //********************** Vibration Routine *****************************
         //**********************************************************************
-        if (((millis() - VibrationTimer) > Vibration_time) && Vibration_Acces)
+        if (((millis() - VibrationTimer) > Vibration_time) && Vibration_enable)
         {                                      // Is it time to go in Vibration routine
             VibrationTimer = millis();         // Reset vibrationtimer
             Serial.println("Vibration Start"); // print that we are in vibration routinge
@@ -355,7 +372,7 @@ void Flying()
         //**********************************************************************
         //************************ AirPump Routine *****************************
         //**********************************************************************
-        if (((millis() - AirpumpTimer) > Airpump_time) && Airpump_Acces)
+        if (((millis() - AirpumpTimer) > Airpump_time) && Airpump_enable)
         {
             AirpumpTimer = millis();
 
