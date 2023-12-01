@@ -159,7 +159,7 @@ void Flying() {
       digitalWrite(SERVOPOWER, HIGH);
 
       //*****Turn on the Waterpump for 30 sec
-      Serial.println("Waterpump on");
+      Serial.println("Waterpump ON");
       digitalWrite(WATERPUMP, LOW);
       delay(one_sec*30);
       digitalWrite(WATERPUMP, HIGH);
