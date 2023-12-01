@@ -163,7 +163,7 @@ void Flying() {
       digitalWrite(WATERPUMP, LOW);
       delay(one_sec*30);
       digitalWrite(WATERPUMP, HIGH);
-      Serial.println("Waterpump off");
+      Serial.println("Waterpump OFF");
       
       //*******Set new Accesses:
       Airpump_Acces = false;    //in this phase the airpump should not turn on
