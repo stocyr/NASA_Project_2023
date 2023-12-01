@@ -37,13 +37,13 @@
 #define Dry_phase_start_time (((one_min * 3) / 1000) / SpeedFactor)    //"
 
 //************** Defining the IOs
-#define LED IO7
-#define WATERPUMP IO6
-#define AIRPUMPF IO5
-#define AIRPUMPB IO4
-#define VIBRATOR IO3
-#define SERVOCONTROL IO2
-#define SERVOPOWER IO1
+#define LED_PIN IO7
+#define WATERPUMP_PIN IO6
+#define AIRPUMP_F_PIN IO5
+#define AIRPUMP_B_PIN IO4
+#define VIBRATOR_PIN IO3
+#define SERVOCONTROL_PIN IO2
+#define SERVOPOWER_PIN IO1
 
 //************** Define the default Times for the Routines (may get changed in different Phases)
 uint32_t Photo_time = ((one_sec * 20) / SpeedFactor);     // takes a photo every 20 seconds per default
@@ -78,19 +78,22 @@ void Flying()
     //   of your program
     //****************************************************************
 
+    //************** Constants
+    const int SERVO_ANGLE_CLOSED = 170;
+    const int TEMPERATURE_UPPER_LIMIT = 40; // Temperaturlimite die nicht üebrschritten werden darf. Wird geprüft bevor der Vibrationsmotor angeschaltet wird
+
     //************** Setup Servo
-    Servo myservo;                // initialize servo
-    myservo.attach(SERVOCONTROL); // attach it to IO Servocontrol
-    int servoangle;               // initialize angle variable to read out later
+    Servo myservo;                    // initialize servo
+    myservo.attach(SERVOCONTROL_PIN); // attach it to IO SERVOCONTROL_PIN
+    int servoangle;                   // initialize angle variable to read out later
 
     //************** Boolean to control if the Routines are triggered (may get changed in different Phases)
     boolean Airpump_Acces = false;
     boolean Vibration_Acces = false;
 
     //************** Initializing some values
-    int Airpumpcycle = 0;      // definiert ob die Pumpe vorwärts rückwärts oder gar nicht läuft
-    int phase = 0;             // Variable die Definiert in welcher phase der code ist
-    int TemperatureLimit = 40; // Temperaturlimite die nicht üebrschritten werden darf. Wird geprüft bevor der Vibrationsmotor angeschaltet wird
+    int Airpumpcycle = 0; // definiert ob die Pumpe vorwärts rückwärts oder gar nicht läuft
+    int phase = 0;        // Variable die Definiert in welcher phase der code ist
 
     //******************************************************************
     //------------ flying -----------------------
@@ -115,7 +118,7 @@ void Flying()
     //***********************************************************************
     //***********************************************************************
 
-    while (1)  // Event loop -- don't sleep in here, only wait for time to elapse.
+    while (1) // Event loop -- don't sleep in here, only wait for time to elapse.
     {
         //
         //----------- Test for terminal abort command (x) from flying ----------------------
@@ -141,6 +144,7 @@ void Flying()
         if (t < Water_phase_start_time)
         {
             phase = 0;
+            initializeWaitingPhase();
         }
         else if ((Water_phase_start_time <= t) && (t < Mix_phase_start_time))
         {
@@ -164,19 +168,19 @@ void Flying()
         ////////////////////////////////////////////////////////////////////
         switch (phase)
         {
-        case 1: //**********WATERPHASE****************************************
+        case 1: //**********WATERPHASE*****************************************
 
             //*****Making sure the gate to the drychamber is closed before turning waterpump on
-            digitalWrite(SERVOPOWER, LOW);
-            myservo.write(170);
+            digitalWrite(SERVOPOWER_PIN, LOW);
+            myservo.write(SERVO_ANGLE_CLOSED);
             delay(2000);
-            digitalWrite(SERVOPOWER, HIGH);
+            digitalWrite(SERVOPOWER_PIN, HIGH);
 
             //*****Turn on the Waterpump for 30 sec
             Serial.println("Waterpump ON");
-            digitalWrite(WATERPUMP, LOW);
+            digitalWrite(WATERPUMP_PIN, LOW);
             delay(one_sec * 30);
-            digitalWrite(WATERPUMP, HIGH);
+            digitalWrite(WATERPUMP_PIN, HIGH);
             Serial.println("Waterpump OFF");
 
             //*******Set new Accesses:
@@ -185,7 +189,7 @@ void Flying()
 
             break;
 
-        case 2: //**********MIXPHASE*****************************************
+        case 2: //**********MIXPHASE********************************************
 
             //*****Set new times for the Mixing phase
             Vibration_time = 20 * one_sec; // Vibrate every 10 Seconds
@@ -197,7 +201,7 @@ void Flying()
 
             break;
 
-        case 3: //**********GROWGPHASE***************************************
+        case 3: //**********GROWPHASE*******************************************
 
             //*****Set new times for the Growing phase
             Photo_time = 20 * one_sec;
@@ -211,14 +215,14 @@ void Flying()
         case 4: //**********DRYPHASE*********************************************
 
             //****Check if the Gate is already open
-            digitalWrite(SERVOPOWER, LOW); // give power to servo
-            servoangle = myservo.read();   // read out servoangle
+            digitalWrite(SERVOPOWER_PIN, LOW); // give power to servo
+            servoangle = myservo.read();       // read out servoangle
             if ((servoangle < 0) || (servoangle > 10))
             {                     // check if the angle is far off
                 myservo.write(5); // Turn Servo
                 delay(2000);      // Spare time for gate to open before taking power
             }
-            digitalWrite(SERVOPOWER, HIGH); // take power away
+            digitalWrite(SERVOPOWER_PIN, HIGH); // take power away
 
             //*******Set new Phototime
             Photo_time = 30 * one_sec;
@@ -228,8 +232,8 @@ void Flying()
             Vibration_Acces = false;
 
             //******Making sure that the airpump is off when switching phase (could be running when switich phase )
-            digitalWrite(AIRPUMPF, HIGH); //
-            digitalWrite(AIRPUMPB, HIGH); //
+            digitalWrite(AIRPUMP_F_PIN, HIGH); //
+            digitalWrite(AIRPUMP_B_PIN, HIGH); //
 
             break;
 
@@ -318,12 +322,12 @@ void Flying()
             //*******Check if we are under the Temperature limit:
             Serial.println("reading BME680");
             read_bme680();
-            if (bme.temperature < TemperatureLimit)
+            if (bme.temperature < TEMPERATURE_UPPER_LIMIT)
             {
                 //******Turn on Vibrator
-                digitalWrite(VIBRATOR, LOW);  // Turn on Vibration
-                delay(500);                   // let it Vibrate for 0.5Seconds
-                digitalWrite(VIBRATOR, HIGH); // Turn off Virbation
+                digitalWrite(VIBRATOR_PIN, LOW);  // Turn on Vibration
+                delay(500);                       // let it Vibrate for 0.5Seconds
+                digitalWrite(VIBRATOR_PIN, HIGH); // Turn off Virbation
             }
             else
             {
@@ -340,12 +344,12 @@ void Flying()
             Serial.println("TakePhoto Start");
 
             //*******Making a photo
-            digitalWrite(LED, LOW); // Turn on LED
+            digitalWrite(LED_PIN, LOW); // Turn on LED_PIN
 
             // cmd_takeSpiphoto();       //Take photo
             delay(3000); // Delay to give the camera time
 
-            digitalWrite(LED, HIGH); // Turn of LED
+            digitalWrite(LED_PIN, HIGH); // Turn of LED_PIN
         }
 
         //**********************************************************************
@@ -359,23 +363,23 @@ void Flying()
             switch (Airpumpcycle)
             {
             case 0:
-                digitalWrite(AIRPUMPF, HIGH); // Turn off Airpump
-                digitalWrite(AIRPUMPB, HIGH); // Turn off Airpump
+                digitalWrite(AIRPUMP_F_PIN, HIGH); // Turn off Airpump
+                digitalWrite(AIRPUMP_B_PIN, HIGH); // Turn off Airpump
                 Serial.println("Airpump wait");
                 // We want the wait time to be twice as long as backwards and forwards phase
                 // Therefore we factor the time till the routinge gets triggerd again by two
                 Airpump_time *= 2;
                 break;
             case 1:
-                digitalWrite(AIRPUMPF, HIGH); // Turn on Airpump backwards
-                digitalWrite(AIRPUMPB, LOW);  // Turn on Airpump backwards
+                digitalWrite(AIRPUMP_F_PIN, HIGH); // Turn on Airpump backwards
+                digitalWrite(AIRPUMP_B_PIN, LOW);  // Turn on Airpump backwards
                 Serial.println("Airpump backwards");
                 // Reset to normal triggertime
                 Airpump_time /= 2;
                 break;
             case 2:
-                digitalWrite(AIRPUMPF, LOW);  // Turn on Airpump backwards
-                digitalWrite(AIRPUMPB, HIGH); // Turn on Airpump backwards
+                digitalWrite(AIRPUMP_F_PIN, LOW);  // Turn on Airpump backwards
+                digitalWrite(AIRPUMP_B_PIN, HIGH); // Turn on Airpump backwards
                 break;
             }
             Airpumpcycle = (1 + Airpumpcycle) % 3; // Cycle through phase
