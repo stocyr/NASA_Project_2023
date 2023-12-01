@@ -30,11 +30,11 @@
 #define one_hour 60 * one_min // one hour of time
 #define one_day 24 * one_hour // one day time
 
-//**************Defining when to enter the phases
-#define Water_time (((one_sec * 30) / 1000) / SpeedFactor) // go to Water Phase after 30 seconds
-#define Mix_time (((one_min * 1) / 1000) / SpeedFactor)    // go to Mixing Phase after 1 min
-#define Grow_time (((one_min * 2) / 1000) / SpeedFactor)   //"
-#define Dry_time (((one_min * 3) / 1000) / SpeedFactor)    //"
+//************** Defining when to enter the phases
+#define Water_phase_start_time (((one_sec * 30) / 1000) / SpeedFactor) // go to Water Phase after 30 seconds
+#define Mix_phase_start_time (((one_min * 1) / 1000) / SpeedFactor)    // go to Mixing Phase after 1 min
+#define Grow_phase_start_time (((one_min * 2) / 1000) / SpeedFactor)   //"
+#define Dry_phase_start_time (((one_min * 3) / 1000) / SpeedFactor)    //"
 
 //************** Defining the IOs
 #define LED IO7
@@ -138,23 +138,23 @@ void Flying()
         uint32_t t = readlongFromfram(CumUnix); // read out the mission clock that does not get reset when power is lost
 
         //********************Check what phase we are in and set the phase variable accordingly
-        if (t < Water_time)
+        if (t < Water_phase_start_time)
         {
             phase = 0;
         }
-        else if ((Water_time <= t) && (t < Mix_time))
+        else if ((Water_phase_start_time <= t) && (t < Mix_phase_start_time))
         {
             phase = 1;
         }
-        else if ((Mix_time <= t) && (t < Grow_time))
+        else if ((Mix_phase_start_time <= t) && (t < Grow_phase_start_time))
         {
             phase = 2;
         }
-        else if ((Grow_time <= t) && (t < Dry_time))
+        else if ((Grow_phase_start_time <= t) && (t < Dry_phase_start_time))
         {
             phase = 3;
         }
-        else if (Dry_time <= t)
+        else if (Dry_phase_start_time <= t)
         {
             phase = 4;
         }
