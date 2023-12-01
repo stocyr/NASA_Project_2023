@@ -9,12 +9,12 @@
 #define __FLYING_H__
 
 void Flying();
-void add2text(int value1,int value2,int value3);      //add the values to the text buffer
-int value1 = 0;                                       //valus used in add2text       
+void add2text(int value1, int value2, int value3); // add the values to the text buffer
+int value1 = 0;                                    // valus used in add2text
 int value2 = 0;
 int value3 = 0;
 //
-void dataappend(int sensor2count,int ampli,int SiPM,int Deadtime);
-void appendToBuffer(const char* data);
+void dataappend(int sensor2count, int ampli, int SiPM, int Deadtime);
+void appendToBuffer(const char *data);
 //
 #endif
