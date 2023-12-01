@@ -62,7 +62,7 @@ int sensor2count = 0;     //counter of times the sensor has been accessed
 //   Beginning of the flight program setup
 
 void Flying() {
-  Serial.println("Here to Run flight program, not done yet 20230718");
+  Serial.println("Here to Run Flight program, not done yet 20230718");
   Serial.println(" 20231116 working on it");
   //
   uint32_t PhotoTimer = millis();               //set Phototimer to effective 0
