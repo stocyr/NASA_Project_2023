@@ -18,8 +18,8 @@
 //////////////////////////////////////////////////////////////////////////
 //    This defines the timers used to control flight operations
 //////////////////////////////////////////////////////////////////////////
-//  Fast clock --- 1 hour = 5 min = 1/12 of an  hour
-//     one millie -- 1ms
+//  Fast clock --- 1 hour = 5 min = 1/12 of an hour
+//  one "milli" -- 1ms
 
 #define SpeedFactor 1 // = times faster
 
@@ -36,7 +36,7 @@
 #define Grow_time (((one_min * 2) / 1000) / SpeedFactor)   //"
 #define Dry_time (((one_min * 3) / 1000) / SpeedFactor)    //"
 
-//**************Defining the IOs
+//************** Defining the IOs
 #define LED IO7
 #define WATERPUMP IO6
 #define AIRPUMPF IO5
@@ -45,12 +45,12 @@
 #define SERVOCONTROL IO2
 #define SERVOPOWER IO1
 
-//**************Defin the default Times for the Routines (may get changed in different Phases)
+//************** Define the default Times for the Routines (may get changed in different Phases)
 uint32_t Photo_time = ((one_sec * 20) / SpeedFactor);     // takes a photo every 20 seconds per default
 uint32_t Vibration_time = ((one_sec * 20) / SpeedFactor); // vibrates every 20 seconds per default
 uint32_t Airpump_time = ((one_sec * 5) / SpeedFactor);    // Changes between pumping forward, backwards and waiting every 5 sec (if not changed in Airpump Routine)
 
-//**************Von Howel bruachen wir nicht
+//************** Von Howel bruachen wir nicht
 int sensor1count = 0; // counter of times the sensor has been accessed
 int sensor2count = 0; // counter of times the sensor has been accessed
 
@@ -78,16 +78,16 @@ void Flying()
     //   of your program
     //****************************************************************
 
-    //**************Setup Servo
-    Servo myservo;                // initialzie servo
-    myservo.attach(SERVOCONTROL); // attach it to Io Servocontroll
+    //************** Setup Servo
+    Servo myservo;                // initialize servo
+    myservo.attach(SERVOCONTROL); // attach it to IO Servocontrol
     int servoangle;               // initialize angle variable to read out later
 
-    //**************Boolean to control if the Routines are triggeret (may get changed in different Phases)
+    //************** Boolean to control if the Routines are triggered (may get changed in different Phases)
     boolean Airpump_Acces = false;
     boolean Vibration_Acces = false;
 
-    //**************Initiallising some Values
+    //************** Initializing some values
     int Airpumpcycle = 0;      // definiert ob die Pumpe vorwärts rückwärts oder gar nicht läuft
     int phase = 0;             // Variable die Definiert in welcher phase der code ist
     int TemperatureLimit = 40; // Temperaturlimite die nicht üebrschritten werden darf. Wird geprüft bevor der Vibrationsmotor angeschaltet wird
@@ -115,7 +115,7 @@ void Flying()
     //***********************************************************************
     //***********************************************************************
 
-    while (1)
+    while (1)  // Event loop -- don't sleep in here, only wait for time to elapse.
     {
         //
         //----------- Test for terminal abort command (x) from flying ----------------------
@@ -132,7 +132,7 @@ void Flying()
         //------------------------------------------------------------------
 
         ////////////////////////////////////////////////////////////////////
-        ////////////////Determine which Phase we are in/////////////////////
+        /////////////// Determine which Phase we are in ////////////////////
         ////////////////////////////////////////////////////////////////////
 
         uint32_t t = readlongFromfram(CumUnix); // read out the mission clock that does not get reset when power is lost
@@ -160,7 +160,7 @@ void Flying()
         }
 
         ////////////////////////////////////////////////////////////////////
-        ///////////////Diffrent Phase Routines//////////////////////////////
+        ////////////// Different Phase Routines ////////////////////////////
         ////////////////////////////////////////////////////////////////////
         switch (phase)
         {
@@ -306,11 +306,10 @@ void Flying()
             //
             DotStarOff();
         } // end of one second routine
-          //
-          //**********************************************************************
-          //********************** Voibration Routine ****************************
-          //**********************************************************************
-        //
+
+        //**********************************************************************
+        //********************** Vibration Routine *****************************
+        //**********************************************************************
         if (((millis() - VibrationTimer) > Vibration_time) && Vibration_Acces)
         {                                      // Is it time to go in Vibration routine
             VibrationTimer = millis();         // Reset vibrationtimer
@@ -331,11 +330,10 @@ void Flying()
                 Serial.println("Too hot for Vibration");
             }
         }
-        //
+
         //**********************************************************************
-        //*************************Photo Routine********************************
+        //************************ Photo Routine *******************************
         //**********************************************************************
-        //
         if ((millis() - PhotoTimer) > Photo_time)
         {
             PhotoTimer = millis();
@@ -349,17 +347,15 @@ void Flying()
 
             digitalWrite(LED, HIGH); // Turn of LED
         }
-        //
-        //
+
         //**********************************************************************
-        //*************************AirPump Routine********************************
+        //************************ AirPump Routine *****************************
         //**********************************************************************
-        //
         if (((millis() - AirpumpTimer) > Airpump_time) && Airpump_Acces)
         {
             AirpumpTimer = millis();
 
-            //************Cycling through forwards, backwards, and waiting
+            //************ Cycling through forwards, backwards, and waiting
             switch (Airpumpcycle)
             {
             case 0:
@@ -391,7 +387,7 @@ void Flying()
 //    This is a function to adds three values to the user_text_buffer
 //    Written specificy for 2023-2024 Team F, Team B,
 //    Enter the function with "add2text(1st interger value, 2nd intergre value, 3rd intergervalue);
-//    the " - value1 " text can be changed to lable the value or removed to same space
+//    the " - value1 " text can be changed to label the value or removed to same space
 //    ", value2 " and ", value 3 " masy also be removed or changed to a lable.
 //    Space availiable is 1024 bytes, Note- - each Data line has a ncarrage return and a line feed
 //
