@@ -419,7 +419,7 @@ void Flying()
             byte x = Serial.read(); // get the input byte
             if (x == 'x')
             {           // check the byte for an abort x
-                return; // return back to poeration sellection
+                return; // return back to operation selection
             }           // end check
         }               // end abort check
 
