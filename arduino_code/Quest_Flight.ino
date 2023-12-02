@@ -15,7 +15,7 @@
 #include "Quest_CLI.h"
 #include <Servo.h>
 
-#define DEBUG_MODE 1 // Should be 0 for real program
+#define PHOTOS_ENABLED 0 // Should be 1 for the real program
 
 //////////////////////////////////////////////////////////////////////////
 //    This defines the timers used to control flight operations
@@ -32,8 +32,8 @@ const uint32_t one_min = 60 * one_sec;  // one minute of time
 const uint32_t one_hour = 60 * one_min; // one hour of time
 const uint32_t one_day = 24 * one_hour; // one day time
 
-//************** Define the phases
-enum PHASE
+//************** Define phases
+enum GLOBAL_PHASE
 {
     WAITING_PHASE,
     WATER_PHASE,
@@ -60,134 +60,55 @@ const uint32_t Dry_phase_start_time = Grow_phase_start_time + (Grow_phase_durati
 const int SERVO_ANGLE_CLOSED = 170;
 const int SERVO_ANGLE_OPENED = 5;
 const int SERVO_ANGLE_OPENED_TOL[2] = {0, 10};
-const uint32_t SERVO_WAIT_TIME_MS = 2000;
+const uint32_t SERVO_WAIT_TIME_MS = 2 * one_sec;
 const int TEMPERATURE_UPPER_LIMIT = 40; // If this limit is exceeded, vibration motor is forbidden to run (heats up)
+const uint32_t CAM_ILLUMINATION_DURATION_MS = 3 * one_sec;
 
 //************** Define the IOs
 #define LED_PIN IO7
 #define WATERPUMP_PIN IO6
 #define AIRPUMP_F_PIN IO5
 #define AIRPUMP_B_PIN IO4
-#define VIBRATOR_PIN IO3
+#define VIBRATION_PIN IO3
 #define SERVOCONTROL_PIN IO2
 #define SERVOPOWER_PIN IO1
 
 //************** Define the default Times for the Routines (may get changed in different Phases)
-uint32_t Photo_time = ((one_sec * 20) / Speed_up_factor);     // takes a photo every 20 seconds per default
-uint32_t Vibration_time = ((one_sec * 20) / Speed_up_factor); // vibrates every 20 seconds per default
-uint32_t Airpump_time = ((one_sec * 5) / Speed_up_factor);    // Changes between pumping forward, backwards and waiting every 5 sec (if not changed in Airpump Routine)
+uint32_t Photo_time;     // takes a photo every .. seconds (configurable for each phase)
+uint32_t Vibration_time; // vibrates every .. seconds for ... seconds (configurable for each phase)
+uint32_t Airpump_time;   // Changes between waiting, pumping backwards and pumping forward with configurable durations
 
 //************** Global variables
 Servo myservo;
+
+enum AIRPUMP_PHASE
+{
+    AIR_FORWARD_PHASE,
+    AIR_BACKWARD_PHASE,
+    AIR_WAIT_PHASE
+};
 bool Airpump_enable;
+int Airpump_phase; // Keeps track of the pumps state: off, backward, forward
+const int Airpump_phase_sequence_length = 3;
+int Airpump_phase_durations_ms[3] = {5 * one_sec, 10 * one_sec, 5 * one_sec}; // TODO: check the times
+//                                    [FORWARD]    [BACKWARD]    [WAITING]
+
+enum VIBRATION_PHASE
+{
+    VIB_ON_PHASE,
+    VIB_OFF_PHASE
+};
 bool Vibration_enable;
-int Airpumpcycle; // Keeps track of the pumps state: forward, backward or off
-int phase;        // Defines current phase
-int servoangle;   // initialize angle variable to read out later
+int Vibration_phase; // Keeps track of the vibration state: on or off
+const int Vibration_phase_sequence_length = 2;
+int Vibration_phase_durations_ms[2] = {500, 20 * one_sec};
+//                                    [ON]    [OFF]
+
+int phase;      // Defines current phase
+int servoangle; // initialize angle variable to read out later
 bool illumination_led_state;
 
-//************** (Not needed -- from Howell)
-int sensor1count = 0; // counter of times the sensor has been accessed
-int sensor2count = 0; // counter of times the sensor has been accessed
-
-//************** Phase State Transitions
-void setup_waiting_phase()
-{
-    // Turn off the Waterpump
-    digitalWrite(WATERPUMP_PIN, HIGH);
-
-    // Disable airpump
-    digitalWrite(AIRPUMP_F_PIN, HIGH);
-    digitalWrite(AIRPUMP_B_PIN, HIGH);
-    Airpump_enable = false;
-
-    // Disable vibration
-    Vibration_enable = false;
-
-    // Set new Phototime
-    // TODO: asdf
-}
-
-void setup_water_phase()
-{
-    // Making sure the gate to the drychamber is closed before turning waterpump on
-    servo_close();
-
-    // Turn on the Waterpump for 30 sec
-    Serial.println("Waterpump ON");
-    digitalWrite(WATERPUMP_PIN, LOW);
-
-    // Disable vibration periphery state
-    Vibration_enable = false;
-
-    // Disable airpump
-    digitalWrite(AIRPUMP_F_PIN, HIGH);
-    digitalWrite(AIRPUMP_B_PIN, HIGH);
-    Airpump_enable = false;
-
-    // Set new Phototime
-    Photo_time = 1 * one_sec; // take photo every second
-}
-
-void setup_mix_phase()
-{
-    // Making sure the gate to the drychamber is closed
-    // servo_close();  // Takes ~ 2 seconds
-
-    // Turn off the Waterpump
-    Serial.println("Waterpump OFF");
-    digitalWrite(WATERPUMP_PIN, HIGH);
-
-    // Enable vibration
-    Vibration_enable = true;
-    Vibration_time = 20 * one_sec; // Vibrate every 10 Seconds
-
-    // Disable airpump
-    digitalWrite(AIRPUMP_F_PIN, HIGH);
-    digitalWrite(AIRPUMP_B_PIN, HIGH);
-    Airpump_enable = false; // in this phase the airpump should not turn on
-
-    // Set new Phototime
-    Photo_time = 20 * one_sec; // take photo every 20 seconds
-}
-
-void setup_grow_phase()
-{
-    // Making sure the gate to the drychamber is closed
-    // servo_close();  // Takes ~ 2 seconds
-
-    // Turn off the Waterpump
-    digitalWrite(WATERPUMP_PIN, HIGH);
-
-    // Disable vibration
-    Vibration_enable = false;
-
-    // Enable airpump
-    Airpump_enable = true;
-    // TODO: explicitly set airpump pattern
-
-    // Set new Phototime
-    Photo_time = 30 * one_min; // take photo every 30 minutes
-}
-
-void setup_dry_phase()
-{
-    // Open the molecular sieve chamber
-    servo_open();
-
-    // Disable vibration
-    Vibration_enable = false;
-
-    // Enable airpump
-    Airpump_enable = false;
-    digitalWrite(AIRPUMP_F_PIN, HIGH);
-    digitalWrite(AIRPUMP_B_PIN, HIGH);
-
-    // Set new Phototime
-    Photo_time = 1 * one_hour; // take photo every hour
-}
-
-//************** Utility methods
+//************** Periphery Utility methods
 
 void servo_close()
 {
@@ -201,7 +122,7 @@ void servo_close()
     digitalWrite(SERVOPOWER_PIN, HIGH);
 }
 
-void servo_open()
+void servo_ensure_open()
 {
     // Read out servoangle
     servoangle = myservo.read();
@@ -232,6 +153,164 @@ void set_illumination_led(bool status)
         illumination_led_state = false;
     }
 }
+
+void set_vibration_state(bool status)
+{
+    if (status)
+    {
+        //*******Check if we are below the Temperature limit:
+        Serial.print("reading BME680: ");
+        read_bme680();
+        Serial.println(bme.temperature);
+        if (bme.temperature < TEMPERATURE_UPPER_LIMIT)
+        {
+            //******Turn on Vibration
+            digitalWrite(VIBRATION_PIN, LOW); // Turn on Vibration
+        }
+        else
+        {
+            Serial.println("Too hot for Vibration");
+        }
+    }
+    else
+    {
+        digitalWrite(VIBRATION_PIN, HIGH); // Turn off Vibration
+    }
+}
+
+void set_pump_state(int state)
+{
+    // TODO: is the polarization and corresponding labeling "forward / backward" still correct like this?
+
+    switch (state)
+    {
+    case AIR_WAIT_PHASE:
+        digitalWrite(AIRPUMP_F_PIN, HIGH); // Turn off Airpump
+        digitalWrite(AIRPUMP_B_PIN, HIGH); // Turn off Airpump
+        Serial.println("Airpump wait");
+        break;
+    case AIR_BACKWARD_PHASE:
+        digitalWrite(AIRPUMP_F_PIN, HIGH); // Turn on Airpump backward
+        digitalWrite(AIRPUMP_B_PIN, LOW);  // Turn on Airpump backward
+        Serial.println("Airpump backwards");
+        break;
+    case AIR_FORWARD_PHASE:
+        digitalWrite(AIRPUMP_F_PIN, LOW);  // Turn on Airpump forward
+        digitalWrite(AIRPUMP_B_PIN, HIGH); // Turn on Airpump forward
+        Serial.println("Airpump forward");
+        break;
+    default:
+        break;
+    }
+}
+
+//************** Phase State Transitions
+void setup_waiting_phase()
+{
+    // Turn off the Waterpump
+    digitalWrite(WATERPUMP_PIN, HIGH);
+
+    // Disable airpump
+    Airpump_enable = false;
+    set_pump_state(AIR_WAIT_PHASE);
+
+    // Disable vibration
+    Vibration_enable = false;
+    set_vibration_state(false);
+
+    // Set new Phototime
+    Photo_time = 1 * one_hour; // take photo every hour -- only to measure temperatur.
+}
+
+void setup_water_phase()
+{
+    // Making sure the gate to the drychamber is closed before turning waterpump on
+    servo_close();
+
+    // Turn on the Waterpump (for 30 sec)
+    Serial.println("Waterpump ON");
+    digitalWrite(WATERPUMP_PIN, LOW);
+
+    // Disable vibration
+    Vibration_enable = false;
+    set_vibration_state(false);
+
+    // Disable airpump
+    Airpump_enable = false;
+    set_pump_state(AIR_WAIT_PHASE);
+
+    // Set new Phototime
+    Photo_time = 1 * one_sec; // take photo every second
+}
+
+void setup_mix_phase()
+{
+    // Making sure the gate to the drychamber is closed
+    // servo_close();  // Takes ~ 2 seconds
+
+    // Turn off the Waterpump
+    Serial.println("Waterpump OFF");
+    digitalWrite(WATERPUMP_PIN, HIGH);
+
+    // Enable vibration
+    Vibration_enable = true;
+    Vibration_phase = VIB_ON_PHASE;
+    Vibration_time = 0;                                         // Makes it initially direcly hit the phase switch of phase 0
+    Vibration_phase_durations_ms[VIB_ON_PHASE] = 500;           // 0.5s ON
+    Vibration_phase_durations_ms[VIB_OFF_PHASE] = 20 * one_sec; // 20s OFF
+
+    // Disable airpump
+    Airpump_enable = false; // in this phase the airpump should not turn on
+    set_pump_state(AIR_WAIT_PHASE);
+
+    // Set new Phototime
+    Photo_time = 20 * one_sec; // take photo every 20 seconds
+}
+
+void setup_grow_phase()
+{
+    // Making sure the gate to the drychamber is closed
+    // servo_close();  // Takes ~ 2 seconds
+
+    // Turn off the Waterpump
+    digitalWrite(WATERPUMP_PIN, HIGH);
+
+    // Disable vibration
+    Vibration_enable = false;
+    set_vibration_state(false);
+
+    // Enable airpump
+    Airpump_enable = true;
+    Airpump_phase = AIR_FORWARD_PHASE;
+    Airpump_time = 0;                                              // Makes it initially direcly hit the phase switch of phase 0
+    Airpump_phase_durations_ms[AIR_FORWARD_PHASE] = 5 * one_sec;   // 5s forward
+    Airpump_phase_durations_ms[AIR_BACKWARD_PHASE] = 10 * one_sec; // 10s backward
+    Airpump_phase_durations_ms[AIR_WAIT_PHASE] = 5 * one_sec;      // 5s waiting
+
+    // Set new Phototime
+    Photo_time = 30 * one_min; // take photo every 30 minutes
+}
+
+void setup_dry_phase()
+{
+    // Open the molecular sieve chamber
+    servo_ensure_open();
+
+    // Disable vibration
+    Vibration_enable = false;
+    set_vibration_state(false);
+
+    // Disable airpump
+    Airpump_enable = false;
+    set_pump_state(AIR_WAIT_PHASE); // TODO: No pump on here?
+
+    // Set new Phototime
+    Photo_time = 1 * one_hour; // take photo every hour
+}
+
+//************** (Not needed -- from Howell)
+int sensor1count = 0; // counter of times the sensor has been accessed
+int sensor2count = 0; // counter of times the sensor has been accessed
 
 ///////////////////////////////////////////////////////////////////////////
 /**
@@ -266,7 +345,7 @@ void Flying()
     Vibration_enable = false;
 
     //************** Initializing some values
-    Airpumpcycle = 0;      // Keeps track of the pumps state: forward, backward or off
+    Airpump_phase = 0;     // Keeps track of the pumps state: forward, backward or off
     phase = WAITING_PHASE; // Defines current phase
 
     //******************************************************************
@@ -483,59 +562,52 @@ void Flying()
         //**********************************************************************
         //********************** Vibration Routine *****************************
         //**********************************************************************
-        if (((millis() - VibrationTimer) > Vibration_time) && Vibration_enable)
-        {                                      // Is it time to go in Vibration routine
-            VibrationTimer = millis();         // Reset vibrationtimer
-            Serial.println("Vibration Start"); // print that we are in vibration routinge
+        if (Vibration_enable && ((millis() - VibrationTimer) > Vibration_time))
+        {                              // Is it time to go in Vibration routine
+            VibrationTimer = millis(); // Reset vibrationtimer
 
-            //*******Check if we are under the Temperature limit:
-            Serial.println("reading BME680");
-            read_bme680();
-            if (bme.temperature < TEMPERATURE_UPPER_LIMIT)
+            //************ Cycling through on and off
+            switch (Vibration_phase)
             {
-                //******Turn on Vibrator
-                digitalWrite(VIBRATOR_PIN, LOW);  // Turn on Vibration
-                delay(500);                       // let it Vibrate for 0.5Seconds
-                digitalWrite(VIBRATOR_PIN, HIGH); // Turn off Virbation
+            case VIB_ON_PHASE:
+                set_vibration_state(true);
+                Vibration_time = Vibration_phase_durations_ms[Vibration_phase];
+                break;
+
+            case VIB_OFF_PHASE:
+                set_vibration_state(false);
+                Vibration_time = Vibration_phase_durations_ms[Vibration_phase];
+
+            default:
+                break;
             }
-            else
-            {
-                // TODO: This is printed without a delay -- doesn't it flood the terminal?
-                Serial.println("Too hot for Vibration");
-            }
+            Vibration_phase = (++Vibration_phase) % Vibration_phase_sequence_length; // Cycle through phase
         }
 
         //**********************************************************************
         //************************ AirPump Routine *****************************
         //**********************************************************************
-        if (((millis() - AirpumpTimer) > Airpump_time) && Airpump_enable)
+        if (Airpump_enable && ((millis() - AirpumpTimer) > Airpump_time))
         {
             AirpumpTimer = millis();
 
             //************ Cycling through forwards, backwards, and waiting
-            switch (Airpumpcycle)
+            switch (Airpump_phase)
             {
-            case 0:
-                digitalWrite(AIRPUMP_F_PIN, HIGH); // Turn off Airpump
-                digitalWrite(AIRPUMP_B_PIN, HIGH); // Turn off Airpump
-                Serial.println("Airpump wait");
-                // We want the wait time to be twice as long as backwards and forwards phase
-                // Therefore we factor the time till the routinge gets triggerd again by two
-                Airpump_time *= 2;
+            case AIR_FORWARD_PHASE:
+                set_pump_state(AIR_FORWARD_PHASE);
+                Airpump_time = Airpump_phase_durations_ms[Airpump_phase];
                 break;
-            case 1:
-                digitalWrite(AIRPUMP_F_PIN, HIGH); // Turn on Airpump backwards
-                digitalWrite(AIRPUMP_B_PIN, LOW);  // Turn on Airpump backwards
-                Serial.println("Airpump backwards");
-                // Reset to normal triggertime
-                Airpump_time /= 2;
+            case AIR_BACKWARD_PHASE:
+                set_pump_state(AIR_BACKWARD_PHASE);
+                Airpump_time = Airpump_phase_durations_ms[Airpump_phase];
                 break;
-            case 2:
-                digitalWrite(AIRPUMP_F_PIN, LOW);  // Turn on Airpump backwards
-                digitalWrite(AIRPUMP_B_PIN, HIGH); // Turn on Airpump backwards
+            case AIR_WAIT_PHASE:
+                set_pump_state(AIR_WAIT_PHASE);
+                Airpump_time = Airpump_phase_durations_ms[Airpump_phase];
                 break;
             }
-            Airpumpcycle = (1 + Airpumpcycle) % 3; // Cycle through phase
+            Airpump_phase = (++Airpump_phase) % Airpump_phase_sequence_length; // Cycle through phase
         }
 
         //**********************************************************************
@@ -552,17 +624,17 @@ void Flying()
                 set_illumination_led(true);
             }
             // This works like a retriggerable mono-stable flipflop: the illumination LED is
-            // kept ON at least CAM_ILLUMINATION_TIME from now on.
+            // kept ON at least CAM_ILLUMINATION_DURATION_MS from now on.
             IlluminationLedTimer = millis();
 
-            if (!DEBUG_MODE)
+            if (PHOTOS_ENABLED)
             {
                 cmd_takeSpiphoto(); // Take photo
             }
         }
-        if ((illumination_led_state == true) && (millis() - IlluminationLedTimer) > CAM_ILLUMINATION_TIME)
+        if ((illumination_led_state == true) && (millis() - IlluminationLedTimer) > CAM_ILLUMINATION_DURATION_MS)
         {
-            // By now, the last time a photo was requested is more than CAM_ILLUMINATION_TIME ago and
+            // By now, the last time a photo was requested is more than CAM_ILLUMINATION_DURATION_MS ago and
             // the LED is still on --> turn off LED
             set_illumination_led(false);
         }
