@@ -15,6 +15,8 @@
 #include "Quest_CLI.h"
 #include <Servo.h>
 
+#define DEBUG_MODE 1 // Should be 0 for real program
+
 //////////////////////////////////////////////////////////////////////////
 //    This defines the timers used to control flight operations
 //////////////////////////////////////////////////////////////////////////
@@ -77,11 +79,12 @@ uint32_t Airpump_time = ((one_sec * 5) / Speed_up_factor);    // Changes between
 
 //************** Global variables
 Servo myservo;
-boolean Airpump_enable;
-boolean Vibration_enable;
+bool Airpump_enable;
+bool Vibration_enable;
 int Airpumpcycle; // Keeps track of the pumps state: forward, backward or off
 int phase;        // Defines current phase
 int servoangle;   // initialize angle variable to read out later
+bool illumination_led_state;
 
 //************** (Not needed -- from Howell)
 int sensor1count = 0; // counter of times the sensor has been accessed
@@ -145,7 +148,7 @@ void setup_mix_phase()
     Airpump_enable = false; // in this phase the airpump should not turn on
 
     // Set new Phototime
-    Photo_time = 20 * one_sec; // take photo every 10 seconds
+    Photo_time = 20 * one_sec; // take photo every 20 seconds
 }
 
 void setup_grow_phase()
@@ -164,7 +167,7 @@ void setup_grow_phase()
     // TODO: explicitly set airpump pattern
 
     // Set new Phototime
-    Photo_time = 20 * one_sec;
+    Photo_time = 30 * one_min; // take photo every 30 minutes
 }
 
 void setup_dry_phase()
@@ -181,7 +184,7 @@ void setup_dry_phase()
     digitalWrite(AIRPUMP_B_PIN, HIGH);
 
     // Set new Phototime
-    Photo_time = 30 * one_sec;
+    Photo_time = 1 * one_hour; // take photo every hour
 }
 
 //************** Utility methods
@@ -216,6 +219,20 @@ void servo_open()
     }
 }
 
+void set_illumination_led(bool status)
+{
+    if (status)
+    {
+        digitalWrite(LED_PIN, LOW); // Turn on LED_PIN
+        illumination_led_state = true;
+    }
+    else
+    {
+        digitalWrite(LED_PIN, HIGH); // Turn of LED_PIN
+        illumination_led_state = false;
+    }
+}
+
 ///////////////////////////////////////////////////////////////////////////
 /**
    @brief Flying function is used to capture all logic of an experiment during flight.
@@ -226,12 +243,13 @@ void servo_open()
 void Flying()
 {
     Serial.println("Here to Run Flight program, not done yet 20230718");
-    Serial.println(" 20231116 working on it");
-    //
-    uint32_t PhotoTimer = millis();     // set Phototimer to effective 0
-    uint32_t VibrationTimer = millis(); // clear VibrationTimer to effective 0
-    uint32_t AirpumpTimer = millis();   // clear AirpumpTimer to effective 0
-    //
+    Serial.println(" 20231116 working on it"); // TODO: what is this?
+
+    uint32_t PhotoTimer = millis();           // set Phototimer to effective 0
+    uint32_t VibrationTimer = millis();       // clear VibrationTimer to effective 0
+    uint32_t AirpumpTimer = millis();         // clear AirpumpTimer to effective 0
+    uint32_t IlluminationLedTimer = millis(); // clear IlluminationLedTimer to effective 0
+
     uint32_t one_secTimer = millis(); // set happens every second
     uint32_t sec60Timer = millis();   // set minute timer
 
@@ -344,7 +362,7 @@ void Flying()
             {
                 // Phase transition
                 phase = WATER_PHASE;
-                Serial.println("PHASE: WATER");
+                Serial.println("Switch Phase: WATER");
                 setup_water_phase();
             }
             break;
@@ -355,7 +373,7 @@ void Flying()
             {
                 // Phase transition
                 phase = MIX_PHASE;
-                Serial.println("PHASE: MIX");
+                Serial.println("Switch Phase: MIX");
                 setup_mix_phase();
             }
             break;
@@ -366,7 +384,7 @@ void Flying()
             {
                 // Phase transition
                 phase = GROW_PHASE;
-                Serial.println("PHASE: GROW");
+                Serial.println("Switch Phase: GROW");
                 setup_grow_phase();
             }
             break;
@@ -377,7 +395,7 @@ void Flying()
             {
                 // Phase transition
                 phase = DRY_PHASE;
-                Serial.println("PHASE: DRY");
+                Serial.println("Switch Phase: DRY");
                 setup_dry_phase();
             }
             break;
@@ -437,7 +455,7 @@ void Flying()
             Serial.print(" Sec");
 
             //*************Printing phase we are in
-            // TODO: Do you want to print that every second?
+            // TODO: Do you really want to print that every second?
             Serial.print("We are in Phase: ");
             switch (phase)
             {
@@ -488,24 +506,6 @@ void Flying()
         }
 
         //**********************************************************************
-        //************************ Photo Routine *******************************
-        //**********************************************************************
-        if ((millis() - PhotoTimer) > Photo_time)
-        {
-            PhotoTimer = millis();
-            Serial.println("TakePhoto Start");
-
-            //*******Making a photo
-            digitalWrite(LED_PIN, LOW); // Turn on LED_PIN
-
-            // cmd_takeSpiphoto();       //Take photo
-            // TODO: handle this delay differently
-            delay(3000); // Delay to give the camera time
-
-            digitalWrite(LED_PIN, HIGH); // Turn of LED_PIN
-        }
-
-        //**********************************************************************
         //************************ AirPump Routine *****************************
         //**********************************************************************
         if (((millis() - AirpumpTimer) > Airpump_time) && Airpump_enable)
@@ -536,6 +536,35 @@ void Flying()
                 break;
             }
             Airpumpcycle = (1 + Airpumpcycle) % 3; // Cycle through phase
+        }
+
+        //**********************************************************************
+        //************************ Photo Routine *******************************
+        //**********************************************************************
+        if ((millis() - PhotoTimer) > Photo_time)
+        {
+            PhotoTimer = millis();
+            Serial.println("TakePhoto Start");
+
+            //*******Making a photo
+            if (illumination_led_state != true)
+            {
+                set_illumination_led(true);
+            }
+            // This works like a retriggerable mono-stable flipflop: the illumination LED is
+            // kept ON at least CAM_ILLUMINATION_TIME from now on.
+            IlluminationLedTimer = millis();
+
+            if (!DEBUG_MODE)
+            {
+                cmd_takeSpiphoto(); // Take photo
+            }
+        }
+        if ((illumination_led_state == true) && (millis() - IlluminationLedTimer) > CAM_ILLUMINATION_TIME)
+        {
+            // By now, the last time a photo was requested is more than CAM_ILLUMINATION_TIME ago and
+            // the LED is still on --> turn off LED
+            set_illumination_led(false);
         }
     }
 }
