@@ -56,7 +56,10 @@ const uint32_t Dry_phase_start_time = Grow_phase_start_time + (Grow_phase_durati
 
 //************** Define constants
 const int SERVO_ANGLE_CLOSED = 170;
-const int TEMPERATURE_UPPER_LIMIT = 40; // Temperaturlimite die nicht üebrschritten werden darf. Wird geprüft bevor der Vibrationsmotor angeschaltet wird
+const int SERVO_ANGLE_OPENED = 5;
+const int SERVO_ANGLE_OPENED_TOL[2] = {0, 10};
+const uint32_t SERVO_WAIT_TIME_MS = 2000;
+const int TEMPERATURE_UPPER_LIMIT = 40; // If this limit is exceeded, vibration motor is forbidden to run (heats up)
 
 //************** Define the IOs
 #define LED_PIN IO7
@@ -72,9 +75,146 @@ uint32_t Photo_time = ((one_sec * 20) / Speed_up_factor);     // takes a photo e
 uint32_t Vibration_time = ((one_sec * 20) / Speed_up_factor); // vibrates every 20 seconds per default
 uint32_t Airpump_time = ((one_sec * 5) / Speed_up_factor);    // Changes between pumping forward, backwards and waiting every 5 sec (if not changed in Airpump Routine)
 
-//************** Von Howel bruachen wir nicht
+//************** Global variables
+Servo myservo;
+boolean Airpump_enable;
+boolean Vibration_enable;
+int Airpumpcycle; // Keeps track of the pumps state: forward, backward or off
+int phase;        // Defines current phase
+int servoangle;   // initialize angle variable to read out later
+
+//************** (Not needed -- from Howell)
 int sensor1count = 0; // counter of times the sensor has been accessed
 int sensor2count = 0; // counter of times the sensor has been accessed
+
+//************** Phase State Transitions
+void setup_waiting_phase()
+{
+    // Turn off the Waterpump
+    digitalWrite(WATERPUMP_PIN, HIGH);
+
+    // Disable airpump
+    digitalWrite(AIRPUMP_F_PIN, HIGH);
+    digitalWrite(AIRPUMP_B_PIN, HIGH);
+    Airpump_enable = false;
+
+    // Disable vibration
+    Vibration_enable = false;
+
+    // Set new Phototime
+    // TODO: asdf
+}
+
+void setup_water_phase()
+{
+    // Making sure the gate to the drychamber is closed before turning waterpump on
+    servo_close();
+
+    // Turn on the Waterpump for 30 sec
+    Serial.println("Waterpump ON");
+    digitalWrite(WATERPUMP_PIN, LOW);
+
+    // Disable vibration periphery state
+    Vibration_enable = false;
+
+    // Disable airpump
+    digitalWrite(AIRPUMP_F_PIN, HIGH);
+    digitalWrite(AIRPUMP_B_PIN, HIGH);
+    Airpump_enable = false;
+
+    // Set new Phototime
+    Photo_time = 1 * one_sec; // take photo every second
+}
+
+void setup_mix_phase()
+{
+    // Making sure the gate to the drychamber is closed
+    // servo_close();  // Takes ~ 2 seconds
+
+    // Turn off the Waterpump
+    Serial.println("Waterpump OFF");
+    digitalWrite(WATERPUMP_PIN, HIGH);
+
+    // Enable vibration
+    Vibration_enable = true;
+    Vibration_time = 20 * one_sec; // Vibrate every 10 Seconds
+
+    // Disable airpump
+    digitalWrite(AIRPUMP_F_PIN, HIGH);
+    digitalWrite(AIRPUMP_B_PIN, HIGH);
+    Airpump_enable = false; // in this phase the airpump should not turn on
+
+    // Set new Phototime
+    Photo_time = 20 * one_sec; // take photo every 10 seconds
+}
+
+void setup_grow_phase()
+{
+    // Making sure the gate to the drychamber is closed
+    // servo_close();  // Takes ~ 2 seconds
+
+    // Turn off the Waterpump
+    digitalWrite(WATERPUMP_PIN, HIGH);
+
+    // Disable vibration
+    Vibration_enable = false;
+
+    // Enable airpump
+    Airpump_enable = true;
+    // TODO: explicitly set airpump pattern
+
+    // Set new Phototime
+    Photo_time = 20 * one_sec;
+}
+
+void setup_dry_phase()
+{
+    // Open the molecular sieve chamber
+    servo_open();
+
+    // Disable vibration
+    Vibration_enable = false;
+
+    // Enable airpump
+    Airpump_enable = false;
+    digitalWrite(AIRPUMP_F_PIN, HIGH);
+    digitalWrite(AIRPUMP_B_PIN, HIGH);
+
+    // Set new Phototime
+    Photo_time = 30 * one_sec;
+}
+
+//************** Utility methods
+
+void servo_close()
+{
+    // Turn on servo power
+    digitalWrite(SERVOPOWER_PIN, LOW);
+    // Set servo position to closed
+    myservo.write(SERVO_ANGLE_CLOSED);
+    // Wait for servo to reach position
+    delay(SERVO_WAIT_TIME_MS);
+    // Turn off servo power
+    digitalWrite(SERVOPOWER_PIN, HIGH);
+}
+
+void servo_open()
+{
+    // Read out servoangle
+    servoangle = myservo.read();
+    // check if the angle is far off
+    if ((servoangle < SERVO_ANGLE_OPENED_TOL[0]) || (servoangle > SERVO_ANGLE_OPENED_TOL[1]))
+    {
+        // Turn on servo power
+        digitalWrite(SERVOPOWER_PIN, LOW);
+        // Set servo position to opened
+        myservo.write(SERVO_ANGLE_OPENED);
+        // Wait for servo to reach position
+        delay(SERVO_WAIT_TIME_MS);
+        // Turn off servo power
+        digitalWrite(SERVOPOWER_PIN, HIGH);
+    }
+}
 
 ///////////////////////////////////////////////////////////////////////////
 /**
@@ -101,17 +241,15 @@ void Flying()
     //****************************************************************
 
     //************** Setup Servo
-    Servo myservo;                    // initialize servo
     myservo.attach(SERVOCONTROL_PIN); // attach it to IO SERVOCONTROL_PIN
-    int servoangle;                   // initialize angle variable to read out later
 
     //************** Boolean to control if the Routines are triggered (may get changed in different Phases)
-    boolean Airpump_enable = false;
-    boolean Vibration_enable = false;
+    Airpump_enable = false;
+    Vibration_enable = false;
 
     //************** Initializing some values
-    int Airpumpcycle = 0; // definiert ob die Pumpe vorwärts rückwärts oder gar nicht läuft
-    int phase = 0;        // Variable die Definiert in welcher phase der code ist
+    Airpumpcycle = 0;      // Keeps track of the pumps state: forward, backward or off
+    phase = WAITING_PHASE; // Defines current phase
 
     //******************************************************************
     //------------ flying -----------------------
@@ -136,6 +274,44 @@ void Flying()
     //***********************************************************************
     //***********************************************************************
 
+    ////////////////////////////////////////////////////////////////////
+    // Determine which Phase we are in. After an unexpected power-cycle,
+    // This may lead to jumping directly to a phase > WAITING_PHASE.
+    ////////////////////////////////////////////////////////////////////
+
+    uint32_t t = readlongFromfram(CumUnix); // read out the mission clock that does not get reset when power is lost
+
+    //********************Check what phase we are in
+    if (t < Water_phase_start_time)
+    {
+        phase = WAITING_PHASE;
+        setup_waiting_phase();
+    }
+    else if ((Water_phase_start_time <= t) && (t < Mix_phase_start_time))
+    {
+        phase = WATER_PHASE;
+        Serial.println("Unexpected power-cycle. Directly continuing with WATER phase.");
+        setup_water_phase();
+    }
+    else if ((Mix_phase_start_time <= t) && (t < Grow_phase_start_time))
+    {
+        phase = MIX_PHASE;
+        Serial.println("Unexpected power-cycle. Directly continuing with MIX phase.");
+        setup_mix_phase();
+    }
+    else if ((Grow_phase_start_time <= t) && (t < Dry_phase_start_time))
+    {
+        phase = GROW_PHASE;
+        Serial.println("Unexpected power-cycle. Directly continuing with GROW phase.");
+        setup_grow_phase();
+    }
+    else if (t >= Dry_phase_start_time)
+    {
+        phase = DRY_PHASE;
+        Serial.println("Unexpected power-cycle. Directly continuing with DRY phase.");
+        setup_dry_phase();
+    }
+
     while (1) // Event loop -- don't sleep in here, only wait for time to elapse.
     {
         //
@@ -152,106 +328,63 @@ void Flying()
 
         //------------------------------------------------------------------
 
-        ////////////////////////////////////////////////////////////////////
-        /////////////// Determine which Phase we are in ////////////////////
-        ////////////////////////////////////////////////////////////////////
-
         uint32_t t = readlongFromfram(CumUnix); // read out the mission clock that does not get reset when power is lost
 
-        //********************Check what phase we are in and set the phase variable accordingly
-        if (t < Water_phase_start_time)
-        {
-            phase = WAITING_PHASE;
-        }
-        else if ((Water_phase_start_time <= t) && (t < Mix_phase_start_time))
-        {
-            phase = WATER_PHASE;
-        }
-        else if ((Mix_phase_start_time <= t) && (t < Grow_phase_start_time))
-        {
-            phase = MIX_PHASE;
-        }
-        else if ((Grow_phase_start_time <= t) && (t < Dry_phase_start_time))
-        {
-            phase = GROW_PHASE;
-        }
-        else if (t >= Dry_phase_start_time)
-        {
-            phase = DRY_PHASE;
-        }
-
         ////////////////////////////////////////////////////////////////////
-        ////////////// Different Phase Routines ////////////////////////////
+        // Different Phase Routines
+        // Note that the stuff here only covers the repetitive work _during_
+        // a phase and the checks when to transit to a new phase. The actual
+        // *changes* during the phase transition happen in `setup_..._phase()`.
         ////////////////////////////////////////////////////////////////////
         switch (phase)
         {
-        case 1: //********* WATERPHASE ****************************************
+        case WAITING_PHASE: //********* WAITINGPHASE ****************************************
 
-            //*****Making sure the gate to the drychamber is closed before turning waterpump on
-            digitalWrite(SERVOPOWER_PIN, LOW);
-            myservo.write(SERVO_ANGLE_CLOSED);
-            delay(2000);
-            digitalWrite(SERVOPOWER_PIN, HIGH);
-
-            //*****Turn on the Waterpump for 30 sec
-            Serial.println("Waterpump ON");
-            digitalWrite(WATERPUMP_PIN, LOW);
-            delay(one_sec * 30);
-            digitalWrite(WATERPUMP_PIN, HIGH);
-            Serial.println("Waterpump OFF");
-
-            //*******Set new Accesses:
-            Airpump_enable = false;   // in this phase the airpump should not turn on
-            Vibration_enable = false; // in this phase the vibration motor should not turn on
-
-            break;
-
-        case 2: //********* MIXPHASE *******************************************
-
-            //*****Set new times for the Mixing phase
-            Vibration_time = 20 * one_sec; // Vibrate every 10 Seconds
-            Photo_time = 20 * one_sec;     // take photo every 10 seconds
-
-            //*******Set new Accesses:
-            Airpump_enable = false;  // in this phase the airpump should not turn on
-            Vibration_enable = true; // the vibration motor should turn on!
-
-            break;
-
-        case 3: //********* GROWPHASE ******************************************
-
-            //*****Set new times for the Growing phase
-            Photo_time = 20 * one_sec;
-
-            //*******Set new Acces:
-            Airpump_enable = true;    // theairpump should turn on!
-            Vibration_enable = false; // in this phase the vibration morot should not turn on
-
-            break;
-
-        case 4: //********* DRYPHASE ********************************************
-
-            //****Check if the Gate is already open
-            digitalWrite(SERVOPOWER_PIN, LOW); // give power to servo
-            servoangle = myservo.read();       // read out servoangle
-            if ((servoangle < 0) || (servoangle > 10))
-            {                     // check if the angle is far off
-                myservo.write(5); // Turn Servo
-                delay(2000);      // Spare time for gate to open before taking power
+            if (t >= Water_phase_start_time)
+            {
+                // Phase transition
+                phase = WATER_PHASE;
+                Serial.println("PHASE: WATER");
+                setup_water_phase();
             }
-            digitalWrite(SERVOPOWER_PIN, HIGH); // take power away
+            break;
 
-            //*******Set new Phototime
-            Photo_time = 30 * one_sec;
+        case WATER_PHASE: //********* WATERPHASE ****************************************
 
-            //*******Set new Accesses:
-            Airpump_enable = false;
-            Vibration_enable = false;
+            if (t >= Mix_phase_start_time)
+            {
+                // Phase transition
+                phase = MIX_PHASE;
+                Serial.println("PHASE: MIX");
+                setup_mix_phase();
+            }
+            break;
 
-            //******Making sure that the airpump is off when switching phase (could be running when switich phase )
-            digitalWrite(AIRPUMP_F_PIN, HIGH); //
-            digitalWrite(AIRPUMP_B_PIN, HIGH); //
+        case MIX_PHASE: //********* MIXPHASE *******************************************
 
+            if (t >= Grow_phase_start_time)
+            {
+                // Phase transition
+                phase = GROW_PHASE;
+                Serial.println("PHASE: GROW");
+                setup_grow_phase();
+            }
+            break;
+
+        case GROW_PHASE: //********* GROWPHASE ******************************************
+
+            if (t >= Dry_phase_start_time)
+            {
+                // Phase transition
+                phase = DRY_PHASE;
+                Serial.println("PHASE: DRY");
+                setup_dry_phase();
+            }
+            break;
+
+        case DRY_PHASE: //********* DRYPHASE ********************************************
+
+            // No transition from here on
             break;
 
         default:
@@ -304,6 +437,7 @@ void Flying()
             Serial.print(" Sec");
 
             //*************Printing phase we are in
+            // TODO: Do you want to print that every second?
             Serial.print("We are in Phase: ");
             switch (phase)
             {
@@ -348,6 +482,7 @@ void Flying()
             }
             else
             {
+                // TODO: This is printed without a delay -- doesn't it flood the terminal?
                 Serial.println("Too hot for Vibration");
             }
         }
@@ -364,6 +499,7 @@ void Flying()
             digitalWrite(LED_PIN, LOW); // Turn on LED_PIN
 
             // cmd_takeSpiphoto();       //Take photo
+            // TODO: handle this delay differently
             delay(3000); // Delay to give the camera time
 
             digitalWrite(LED_PIN, HIGH); // Turn of LED_PIN
