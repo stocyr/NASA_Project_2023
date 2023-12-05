@@ -159,8 +159,8 @@ void set_vibration_state(bool status)
     if (status)
     {
         //*******Check if we are below the Temperature limit:
-        Serial.print("reading BME680: ");
-        read_bme680();
+        // Serial.print("reading BME680: ");
+        // read_bme680(); // This is already regularly done in the vibration OFF phase switch
         Serial.println(bme.temperature);
         if (bme.temperature < TEMPERATURE_UPPER_LIMIT)
         {
@@ -253,6 +253,8 @@ void setup_mix_phase()
     digitalWrite(WATERPUMP_PIN, HIGH);
 
     // Enable vibration
+    Serial.print("reading BME680: ");
+    read_bme680();
     Vibration_enable = true;
     Vibration_phase = VIB_ON_PHASE;
     Vibration_time = 0;                                         // Makes it initially direcly hit the phase switch of phase 0
@@ -577,6 +579,8 @@ void Flying()
             case VIB_OFF_PHASE:
                 set_vibration_state(false);
                 Vibration_time = Vibration_phase_durations_ms[Vibration_phase];
+                Serial.print("reading BME680: ");
+                read_bme680();
 
             default:
                 break;
