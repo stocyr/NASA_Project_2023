@@ -230,6 +230,11 @@ void setup_water_phase()
     // Turn on the Waterpump (for 30 sec)
     Serial.println("Waterpump ON");
     digitalWrite(WATERPUMP_PIN, LOW);
+    
+    //Turn on the Airpump backwards to fight overpressure
+    digitalWrite(AIRPUMP_F_PIN, HIGH); // Turn on Airpump backward
+    digitalWrite(AIRPUMP_B_PIN, LOW);  // Turn on Airpump backward
+    Serial.println("Airpump ON backwards")
 
     // Disable vibration
     Vibration_enable = false;
@@ -251,6 +256,10 @@ void setup_mix_phase()
     // Turn off the Waterpump
     Serial.println("Waterpump OFF");
     digitalWrite(WATERPUMP_PIN, HIGH);
+    
+    // Turn off the Airpump
+    digitalWrite(AIRPUMP_F_PIN, HIGH);  // Turn off Airpump
+    digitalWrite(AIRPUMP_B_PIN, HIGH);  // Turn off Airpump
 
     // Enable vibration
     Serial.print("reading BME680: ");
