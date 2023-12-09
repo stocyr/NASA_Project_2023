@@ -230,6 +230,9 @@ void setup_water_phase()
     // Turn on the Waterpump (for 30 sec)
     Serial.println("Waterpump ON");
     digitalWrite(WATERPUMP_PIN, LOW);
+    
+    //Turn on the Airpump backwards to fight overpressure
+    set_pump_state(AIR_BACKWARD_PHASE);
 
     // Disable vibration
     Vibration_enable = false;
@@ -251,6 +254,10 @@ void setup_mix_phase()
     // Turn off the Waterpump
     Serial.println("Waterpump OFF");
     digitalWrite(WATERPUMP_PIN, HIGH);
+    
+    // Disable airpump
+    Airpump_enable = false; // in this phase the airpump should not turn on
+    set_pump_state(AIR_WAIT_PHASE);
 
     // Enable vibration
     Serial.print("reading BME680: ");
@@ -260,10 +267,6 @@ void setup_mix_phase()
     Vibration_time = 0;                                         // Makes it initially direcly hit the phase switch of phase 0
     Vibration_phase_durations_ms[VIB_ON_PHASE] = 500;           // 0.5s ON
     Vibration_phase_durations_ms[VIB_OFF_PHASE] = 20 * one_sec; // 20s OFF
-
-    // Disable airpump
-    Airpump_enable = false; // in this phase the airpump should not turn on
-    set_pump_state(AIR_WAIT_PHASE);
 
     // Set new Phototime
     Photo_time = 20 * one_sec; // take photo every 20 seconds
