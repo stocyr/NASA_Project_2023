@@ -636,6 +636,7 @@ void Flying()
             Serial.println("TakePhoto Start");
 
             //*******Making a photo
+            // TODO: Turn everything off except the illumination LED
             if (illumination_led_state != true)
             {
                 set_illumination_led(true);
