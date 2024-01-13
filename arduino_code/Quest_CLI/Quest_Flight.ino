@@ -113,13 +113,13 @@ bool illumination_led_state;
 void servo_close()
 {
     // Turn on servo power
-    digitalWrite(SERVOPOWER_PIN, LOW);
+    digitalWrite(SERVOPOWER_PIN, HIGH);
     // Set servo position to closed
     myservo.write(SERVO_ANGLE_CLOSED);
     // Wait for servo to reach position
     delay(SERVO_WAIT_TIME_MS);
     // Turn off servo power
-    digitalWrite(SERVOPOWER_PIN, HIGH);
+    digitalWrite(SERVOPOWER_PIN, LOW);
 }
 
 void servo_ensure_open()
@@ -130,13 +130,13 @@ void servo_ensure_open()
     if ((servoangle < SERVO_ANGLE_OPENED_TOL[0]) || (servoangle > SERVO_ANGLE_OPENED_TOL[1]))
     {
         // Turn on servo power
-        digitalWrite(SERVOPOWER_PIN, LOW);
+        digitalWrite(SERVOPOWER_PIN, HIGH);
         // Set servo position to opened
         myservo.write(SERVO_ANGLE_OPENED);
         // Wait for servo to reach position
         delay(SERVO_WAIT_TIME_MS);
         // Turn off servo power
-        digitalWrite(SERVOPOWER_PIN, HIGH);
+        digitalWrite(SERVOPOWER_PIN, LOW);
     }
 }
 
@@ -144,12 +144,12 @@ void set_illumination_led(bool status)
 {
     if (status)
     {
-        digitalWrite(LED_PIN, LOW); // Turn on LED_PIN
+        digitalWrite(LED_PIN, HIGH); // Turn on LED_PIN
         illumination_led_state = true;
     }
     else
     {
-        digitalWrite(LED_PIN, HIGH); // Turn of LED_PIN
+        digitalWrite(LED_PIN, LOW); // Turn of LED_PIN
         illumination_led_state = false;
     }
 }
@@ -165,7 +165,7 @@ void set_vibration_state(bool status)
         if (bme.temperature < TEMPERATURE_UPPER_LIMIT)
         {
             //******Turn on Vibration
-            digitalWrite(VIBRATION_PIN, LOW); // Turn on Vibration
+            digitalWrite(VIBRATION_PIN, HIGH); // Turn on Vibration
         }
         else
         {
@@ -174,7 +174,7 @@ void set_vibration_state(bool status)
     }
     else
     {
-        digitalWrite(VIBRATION_PIN, HIGH); // Turn off Vibration
+        digitalWrite(VIBRATION_PIN, LOW); // Turn off Vibration
     }
 }
 
@@ -185,18 +185,18 @@ void set_pump_state(int state)
     switch (state)
     {
     case AIR_WAIT_PHASE:
-        digitalWrite(AIRPUMP_F_PIN, HIGH); // Turn off Airpump
-        digitalWrite(AIRPUMP_B_PIN, HIGH); // Turn off Airpump
+        digitalWrite(AIRPUMP_F_PIN, LOW); // Turn off Airpump
+        digitalWrite(AIRPUMP_B_PIN, LOW); // Turn off Airpump
         Serial.println("Airpump wait");
         break;
     case AIR_BACKWARD_PHASE:
-        digitalWrite(AIRPUMP_F_PIN, HIGH); // Turn on Airpump backward
-        digitalWrite(AIRPUMP_B_PIN, LOW);  // Turn on Airpump backward
+        digitalWrite(AIRPUMP_F_PIN, LOW); // Turn on Airpump backward
+        digitalWrite(AIRPUMP_B_PIN, HIGH);  // Turn on Airpump backward
         Serial.println("Airpump backwards");
         break;
     case AIR_FORWARD_PHASE:
-        digitalWrite(AIRPUMP_F_PIN, LOW);  // Turn on Airpump forward
-        digitalWrite(AIRPUMP_B_PIN, HIGH); // Turn on Airpump forward
+        digitalWrite(AIRPUMP_F_PIN, HIGH);  // Turn on Airpump forward
+        digitalWrite(AIRPUMP_B_PIN, LOW); // Turn on Airpump forward
         Serial.println("Airpump forward");
         break;
     default:
@@ -208,7 +208,7 @@ void set_pump_state(int state)
 void setup_waiting_phase()
 {
     // Turn off the Waterpump
-    digitalWrite(WATERPUMP_PIN, HIGH);
+    digitalWrite(WATERPUMP_PIN, LOW);
 
     // Disable airpump
     Airpump_enable = false;
@@ -229,7 +229,7 @@ void setup_water_phase()
 
     // Turn on the Waterpump (for 30 sec)
     Serial.println("Waterpump ON");
-    digitalWrite(WATERPUMP_PIN, LOW);
+    digitalWrite(WATERPUMP_PIN, HIGH);
     
     //Turn on the Airpump backwards to fight overpressure
     set_pump_state(AIR_BACKWARD_PHASE);
@@ -253,7 +253,7 @@ void setup_mix_phase()
 
     // Turn off the Waterpump
     Serial.println("Waterpump OFF");
-    digitalWrite(WATERPUMP_PIN, HIGH);
+    digitalWrite(WATERPUMP_PIN, LOW);
     
     // Disable airpump
     Airpump_enable = false; // in this phase the airpump should not turn on
@@ -278,7 +278,7 @@ void setup_grow_phase()
     // servo_close();  // Takes ~ 2 seconds
 
     // Turn off the Waterpump
-    digitalWrite(WATERPUMP_PIN, HIGH);
+    digitalWrite(WATERPUMP_PIN, LOW);
 
     // Disable vibration
     Vibration_enable = false;
@@ -344,6 +344,16 @@ void Flying()
 
     //************** Setup Servo
     myservo.attach(SERVOCONTROL_PIN); // attach it to IO SERVOCONTROL_PIN
+
+    //************** Put All IO's to LOW
+    digitalWrite(IO7, LOW);
+    digitalWrite(IO6, LOW);
+    digitalWrite(IO5, LOW);
+    digitalWrite(IO4, LOW);
+    digitalWrite(IO3, LOW);
+    digitalWrite(IO2, LOW);
+    digitalWrite(IO1, LOW);
+    digitalWrite(IO0, LOW);
 
     //************** Boolean to control if the Routines are triggered (may get changed in different Phases)
     Airpump_enable = false;
