@@ -263,7 +263,7 @@ void setup_mix_phase()
     Vibration_phase_durations_ms[VIB_OFF_PHASE] = 20 * one_sec; // 20s OFF
 
     // Set new Phototime
-    Photo_time = 20 * one_sec; // take photo every 20 seconds
+    Photo_time = 1 * one_min; // take photo every 20 seconds
 }
 
 void setup_grow_phase()
