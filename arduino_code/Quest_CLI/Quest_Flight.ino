@@ -243,7 +243,7 @@ void setup_water_phase()
     set_pump_state(AIR_WAIT_PHASE);
 
     // Set new Phototime
-    Photo_time = 1 * one_sec; // take photo every second
+    Photo_time = 10 * one_sec; // take photo every second
 }
 
 void setup_mix_phase()
