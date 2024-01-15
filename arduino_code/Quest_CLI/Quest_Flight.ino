@@ -125,20 +125,14 @@ void servo_close()
 
 void servo_ensure_open()
 {
-    // Read out servoangle
-    servoangle = myservo.read();
-    // check if the angle is far off
-    if ((servoangle < SERVO_ANGLE_OPENED_TOL[0]) || (servoangle > SERVO_ANGLE_OPENED_TOL[1]))
-    {
-        // Turn on servo power
-        digitalWrite(SERVOPOWER_PIN, HIGH);
-        // Set servo position to opened
-        myservo.write(SERVO_ANGLE_OPENED);
-        // Wait for servo to reach position
-        delay(SERVO_WAIT_TIME_MS);
-        // Turn off servo power
-        digitalWrite(SERVOPOWER_PIN, LOW);
-    }
+    // Turn on servo power
+    digitalWrite(SERVOPOWER_PIN, HIGH);
+    // Set servo position to opened
+    myservo.write(SERVO_ANGLE_OPENED);
+    // Wait for servo to reach position
+    delay(SERVO_WAIT_TIME_MS);
+    // Turn off servo power
+    digitalWrite(SERVOPOWER_PIN, LOW);
 }
 
 void set_illumination_led(bool status)
