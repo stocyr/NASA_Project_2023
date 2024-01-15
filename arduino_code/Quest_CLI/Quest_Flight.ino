@@ -67,8 +67,8 @@ const uint32_t CAM_ILLUMINATION_DURATION_MS = 3 * one_sec;
 //************** Define the IOs
 #define LED_PIN IO7
 #define WATERPUMP_PIN IO6
-#define AIRPUMP_F_PIN IO5
-#define AIRPUMP_B_PIN IO4
+#define AIRPUMP_B_PIN IO5  // Note: this Airpump pin is the white one to move the pump in the right direction
+#define AIRPUMP_F_PIN IO4  // Note: this Airpump pin is the black one to move the pump in the right direction
 #define VIBRATION_PIN IO3
 #define SERVOCONTROL_PIN IO2
 #define SERVOPOWER_PIN IO1
