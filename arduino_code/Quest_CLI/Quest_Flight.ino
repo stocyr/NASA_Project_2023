@@ -281,9 +281,9 @@ void setup_grow_phase()
     Airpump_enable = true;
     Airpump_phase = AIR_FORWARD_PHASE;
     Airpump_time = 0;                                              // Makes it initially direcly hit the phase switch of phase 0
-    Airpump_phase_durations_ms[AIR_FORWARD_PHASE] = 5 * one_sec;   // 5s forward
+    Airpump_phase_durations_ms[AIR_FORWARD_PHASE] = 10 * one_sec;   // 5s forward
     Airpump_phase_durations_ms[AIR_BACKWARD_PHASE] = 10 * one_sec; // 10s backward
-    Airpump_phase_durations_ms[AIR_WAIT_PHASE] = 5 * one_sec;      // 5s waiting
+    Airpump_phase_durations_ms[AIR_WAIT_PHASE] = 10 * one_sec;      // 5s waiting
 
     // Set new Phototime
     Photo_time = 30 * one_min; // take photo every 30 minutes
