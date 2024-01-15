@@ -44,7 +44,8 @@ enum GLOBAL_PHASE
 
 //************** Define the duration of the phases
 const int Waiting_phase_duration = 30 * one_sec;
-const int Water_phase_duration = 30 * one_sec;
+const int Water_phase_duration = 60 * one_sec + 6 * 2.631 * one_sec  // Note: add offset to water phase duration from 10s-interval
+;
 const int Mix_phase_duration = 1 * one_min;
 const int Grow_phase_duration = 1 * one_min;
 // const int Dry_phase_duration = 1 * one_min;  // This phase never ends
@@ -227,11 +228,11 @@ void setup_water_phase()
     // Making sure the gate to the drychamber is closed before turning waterpump on
     servo_close();
 
-    // Turn on the Waterpump (for 30 sec)
+    // Turn on the Waterpump (for approx 1 min)
     Serial.println("Waterpump ON");
     digitalWrite(WATERPUMP_PIN, HIGH);
-    
-    //Turn on the Airpump backwards to fight overpressure
+
+    // Turn on the Airpump backwards to fight overpressure
     set_pump_state(AIR_BACKWARD_PHASE);
 
     // Disable vibration
