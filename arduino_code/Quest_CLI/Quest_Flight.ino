@@ -319,8 +319,7 @@ int sensor2count = 0; // counter of times the sensor has been accessed
 
 void Flying()
 {
-    Serial.println("Here to Run Flight program, not done yet 20230718");
-    Serial.println(" 20231116 working on it"); // TODO: what is this?
+    Serial.println("Here to Run Flight program");
 
     uint32_t PhotoTimer = millis();           // set Phototimer to effective 0
     uint32_t VibrationTimer = millis();       // clear VibrationTimer to effective 0
