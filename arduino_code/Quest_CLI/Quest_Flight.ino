@@ -636,7 +636,17 @@ void Flying()
             Serial.println("TakePhoto Start");
 
             //*******Making a photo
-            // TODO: Turn everything off except the illumination LED
+            // save temporary state of all IOs, then reverse the changes after cmd_takeSpiphoto()
+            // Read last state of all IOs before setting them to zero
+            previous_state_waterpump = digitalRead(WATERPUMP_PIN);
+            previous_state_airpump_b = digitalRead(AIRPUMP_B_PIN);
+            previous_state_airpump_f = digitalRead(AIRPUMP_F_PIN);
+            previous_state_vibration = digitalRead(VIBRATION_PIN);
+            // previous_state_servopower = digitalRead(SERVOPOWER_PIN);  // not necessary: this only runs in servo_ensure_open() and servo_close()
+            digitalWrite(WATERPUMP_PIN, LOW);
+            digitalWrite(AIRPUMP_B_PIN, LOW);
+            digitalWrite(AIRPUMP_F_PIN, LOW);
+            digitalWrite(VIBRATION_PIN, LOW);
             if (illumination_led_state != true)
             {
                 set_illumination_led(true);
@@ -649,6 +659,12 @@ void Flying()
             {
                 cmd_takeSpiphoto(); // Take photo
             }
+
+            // Reverse IOs to their previous state
+            digitalWrite(WATERPUMP_PIN, previous_state_waterpump);
+            digitalWrite(AIRPUMP_B_PIN, previous_state_airpump_b);
+            digitalWrite(AIRPUMP_F_PIN, previous_state_airpump_f);
+            digitalWrite(VIBRATION_PIN, previous_state_vibration);
         }
         if ((illumination_led_state == true) && (millis() - IlluminationLedTimer) > CAM_ILLUMINATION_DURATION_MS)
         {
