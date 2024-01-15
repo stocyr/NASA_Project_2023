@@ -15,7 +15,7 @@
 #include "Quest_CLI.h"
 #include <Servo.h>
 
-#define PHOTOS_ENABLED 0 // Should be 1 for the real program
+#define PHOTOS_ENABLED 1 // Should be 1 for the real program
 
 //////////////////////////////////////////////////////////////////////////
 //    This defines the timers used to control flight operations
