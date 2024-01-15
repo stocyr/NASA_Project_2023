@@ -181,8 +181,6 @@ void set_vibration_state(bool status)
 
 void set_pump_state(int state)
 {
-    // TODO: is the polarization and corresponding labeling "forward / backward" still correct like this?
-
     switch (state)
     {
     case AIR_WAIT_PHASE:
@@ -308,7 +306,7 @@ void setup_dry_phase()
 
     // Disable airpump
     Airpump_enable = false;
-    set_pump_state(AIR_WAIT_PHASE); // TODO: No pump on here?
+    set_pump_state(AIR_WAIT_PHASE); // Due to the hose circuitry, the growth chamber and molecular sieve chamber cannot be enforced anymore
 
     // Set new Phototime
     Photo_time = 1 * one_hour; // take photo every hour
@@ -550,7 +548,6 @@ void Flying()
             Serial.print(" Sec");
 
             //*************Printing phase we are in
-            // TODO: Do you really want to print that every second?
             Serial.print("We are in Phase: ");
             switch (phase)
             {
