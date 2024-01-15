@@ -550,7 +550,7 @@ void Flying()
 
             //*************Printing phase we are in
             // TODO: Do you really want to print that every second?
-            Serial.print("We are in Phase: ");
+            Serial.print(" - Phase: ");
             switch (phase)
             {
             case 0:
@@ -646,7 +646,7 @@ void Flying()
 
             if (PHOTOS_ENABLED)
             {
-                cmd_takeSpiphoto(); // Take photo
+                cmd_takeSpiphoto(); // Take photo -> takes 2631ms
             }
         }
         if ((illumination_led_state == true) && (millis() - IlluminationLedTimer) > CAM_ILLUMINATION_DURATION_MS)
