@@ -91,7 +91,7 @@ enum AIRPUMP_PHASE
 bool Airpump_enable;
 int Airpump_phase; // Keeps track of the pumps state: off, backward, forward
 const int Airpump_phase_sequence_length = 3;
-int Airpump_phase_durations_ms[3] = {5 * one_sec, 10 * one_sec, 5 * one_sec}; // TODO: check the times
+int Airpump_phase_durations_ms[3] = {10 * one_sec, 10 * one_sec, 10 * one_sec};
 //                                    [FORWARD]    [BACKWARD]    [WAITING]
 
 enum VIBRATION_PHASE
