@@ -44,7 +44,8 @@ enum GLOBAL_PHASE
 
 //************** Define the duration of the phases
 const int Waiting_phase_duration = 30 * one_sec;
-const int Water_phase_duration = 30 * one_sec;
+const int Water_phase_duration = 40 * one_sec + 6.6 * 2.631 * one_sec;  // This adds the non-pumping times during photo taking with a 6s-interval
+// TODO: Update to real times
 const int Mix_phase_duration = 1 * one_min;
 const int Grow_phase_duration = 1 * one_min;
 // const int Dry_phase_duration = 1 * one_min;  // This phase never ends
@@ -67,8 +68,8 @@ const uint32_t CAM_ILLUMINATION_DURATION_MS = 3 * one_sec;
 //************** Define the IOs
 #define LED_PIN IO7
 #define WATERPUMP_PIN IO6
-#define AIRPUMP_F_PIN IO5
-#define AIRPUMP_B_PIN IO4
+#define AIRPUMP_B_PIN IO5  // Note: this Airpump pin is the white one to move the pump in the right direction
+#define AIRPUMP_F_PIN IO4  // Note: this Airpump pin is the black one to move the pump in the right direction
 #define VIBRATION_PIN IO3
 #define SERVOCONTROL_PIN IO2
 #define SERVOPOWER_PIN IO1
@@ -90,7 +91,7 @@ enum AIRPUMP_PHASE
 bool Airpump_enable;
 int Airpump_phase; // Keeps track of the pumps state: off, backward, forward
 const int Airpump_phase_sequence_length = 3;
-int Airpump_phase_durations_ms[3] = {5 * one_sec, 10 * one_sec, 5 * one_sec}; // TODO: check the times
+int Airpump_phase_durations_ms[3] = {10 * one_sec, 10 * one_sec, 10 * one_sec};
 //                                    [FORWARD]    [BACKWARD]    [WAITING]
 
 enum VIBRATION_PHASE
@@ -124,20 +125,14 @@ void servo_close()
 
 void servo_ensure_open()
 {
-    // Read out servoangle
-    servoangle = myservo.read();
-    // check if the angle is far off
-    if ((servoangle < SERVO_ANGLE_OPENED_TOL[0]) || (servoangle > SERVO_ANGLE_OPENED_TOL[1]))
-    {
-        // Turn on servo power
-        digitalWrite(SERVOPOWER_PIN, HIGH);
-        // Set servo position to opened
-        myservo.write(SERVO_ANGLE_OPENED);
-        // Wait for servo to reach position
-        delay(SERVO_WAIT_TIME_MS);
-        // Turn off servo power
-        digitalWrite(SERVOPOWER_PIN, LOW);
-    }
+    // Turn on servo power
+    digitalWrite(SERVOPOWER_PIN, HIGH);
+    // Set servo position to opened
+    myservo.write(SERVO_ANGLE_OPENED);
+    // Wait for servo to reach position
+    delay(SERVO_WAIT_TIME_MS);
+    // Turn off servo power
+    digitalWrite(SERVOPOWER_PIN, LOW);
 }
 
 void set_illumination_led(bool status)
@@ -180,8 +175,6 @@ void set_vibration_state(bool status)
 
 void set_pump_state(int state)
 {
-    // TODO: is the polarization and corresponding labeling "forward / backward" still correct like this?
-
     switch (state)
     {
     case AIR_WAIT_PHASE:
@@ -227,11 +220,11 @@ void setup_water_phase()
     // Making sure the gate to the drychamber is closed before turning waterpump on
     servo_close();
 
-    // Turn on the Waterpump (for 30 sec)
+    // Turn on the Waterpump (for approx 1 min)
     Serial.println("Waterpump ON");
     digitalWrite(WATERPUMP_PIN, HIGH);
-    
-    //Turn on the Airpump backwards to fight overpressure
+
+    // Turn on the Airpump backwards to fight overpressure
     set_pump_state(AIR_BACKWARD_PHASE);
 
     // Disable vibration
@@ -243,7 +236,7 @@ void setup_water_phase()
     set_pump_state(AIR_WAIT_PHASE);
 
     // Set new Phototime
-    Photo_time = 1 * one_sec; // take photo every second
+    Photo_time = 6 * one_sec; // take photo every second
 }
 
 void setup_mix_phase()
@@ -269,7 +262,7 @@ void setup_mix_phase()
     Vibration_phase_durations_ms[VIB_OFF_PHASE] = 20 * one_sec; // 20s OFF
 
     // Set new Phototime
-    Photo_time = 20 * one_sec; // take photo every 20 seconds
+    Photo_time = 1 * one_min; // take photo every 20 seconds
 }
 
 void setup_grow_phase()
@@ -288,9 +281,9 @@ void setup_grow_phase()
     Airpump_enable = true;
     Airpump_phase = AIR_FORWARD_PHASE;
     Airpump_time = 0;                                              // Makes it initially direcly hit the phase switch of phase 0
-    Airpump_phase_durations_ms[AIR_FORWARD_PHASE] = 5 * one_sec;   // 5s forward
+    Airpump_phase_durations_ms[AIR_FORWARD_PHASE] = 10 * one_sec;   // 5s forward
     Airpump_phase_durations_ms[AIR_BACKWARD_PHASE] = 10 * one_sec; // 10s backward
-    Airpump_phase_durations_ms[AIR_WAIT_PHASE] = 5 * one_sec;      // 5s waiting
+    Airpump_phase_durations_ms[AIR_WAIT_PHASE] = 10 * one_sec;      // 5s waiting
 
     // Set new Phototime
     Photo_time = 30 * one_min; // take photo every 30 minutes
@@ -307,7 +300,7 @@ void setup_dry_phase()
 
     // Disable airpump
     Airpump_enable = false;
-    set_pump_state(AIR_WAIT_PHASE); // TODO: No pump on here?
+    set_pump_state(AIR_WAIT_PHASE); // Due to the hose circuitry, the growth chamber and molecular sieve chamber cannot be enforced anymore
 
     // Set new Phototime
     Photo_time = 1 * one_hour; // take photo every hour
@@ -326,8 +319,7 @@ int sensor2count = 0; // counter of times the sensor has been accessed
 
 void Flying()
 {
-    Serial.println("Here to Run Flight program, not done yet 20230718");
-    Serial.println(" 20231116 working on it"); // TODO: what is this?
+    Serial.println("Here to Run Flight program");
 
     uint32_t PhotoTimer = millis();           // set Phototimer to effective 0
     uint32_t VibrationTimer = millis();       // clear VibrationTimer to effective 0
@@ -548,7 +540,7 @@ void Flying()
             Serial.print(xs);
             Serial.print(" Sec");
 
-            //*************Printing phase we are in
+
             // TODO: Do you really want to print that every second?
             Serial.print(" - Phase: ");
             switch (phase)
@@ -636,6 +628,17 @@ void Flying()
             Serial.println("TakePhoto Start");
 
             //*******Making a photo
+            // save temporary state of all IOs, then reverse the changes after cmd_takeSpiphoto()
+            // Read last state of all IOs before setting them to zero
+            previous_state_waterpump = digitalRead(WATERPUMP_PIN);
+            previous_state_airpump_b = digitalRead(AIRPUMP_B_PIN);
+            previous_state_airpump_f = digitalRead(AIRPUMP_F_PIN);
+            previous_state_vibration = digitalRead(VIBRATION_PIN);
+            // previous_state_servopower = digitalRead(SERVOPOWER_PIN);  // not necessary: this only runs in servo_ensure_open() and servo_close()
+            digitalWrite(WATERPUMP_PIN, LOW);
+            digitalWrite(AIRPUMP_B_PIN, LOW);
+            digitalWrite(AIRPUMP_F_PIN, LOW);
+            digitalWrite(VIBRATION_PIN, LOW);
             if (illumination_led_state != true)
             {
                 set_illumination_led(true);
@@ -648,6 +651,12 @@ void Flying()
             {
                 cmd_takeSpiphoto(); // Take photo -> takes 2631ms
             }
+
+            // Reverse IOs to their previous state
+            digitalWrite(WATERPUMP_PIN, previous_state_waterpump);
+            digitalWrite(AIRPUMP_B_PIN, previous_state_airpump_b);
+            digitalWrite(AIRPUMP_F_PIN, previous_state_airpump_f);
+            digitalWrite(VIBRATION_PIN, previous_state_vibration);
         }
         if ((illumination_led_state == true) && (millis() - IlluminationLedTimer) > CAM_ILLUMINATION_DURATION_MS)
         {
