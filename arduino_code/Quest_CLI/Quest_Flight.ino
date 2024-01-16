@@ -43,12 +43,11 @@ enum GLOBAL_PHASE
 };
 
 //************** Define the duration of the phases
-const int Waiting_phase_duration = 30 * one_sec;
+const int Waiting_phase_duration = 24 * one_hour;
 const int Water_phase_duration = 40 * one_sec + 6.6 * 2.631 * one_sec;  // This adds the non-pumping times during photo taking with a 6s-interval
-// TODO: Update to real times
-const int Mix_phase_duration = 1 * one_min;
-const int Grow_phase_duration = 1 * one_min;
-// const int Dry_phase_duration = 1 * one_min;  // This phase never ends
+const int Mix_phase_duration = 4 * one_hour;
+const int Grow_phase_duration = 4 * one_day;
+// const int Dry_phase_duration = 25 * one_day;  // This phase never ends
 
 //************** Define when to enter the phases (only change the durations above!)
 const uint32_t Waiting_phase_start_time = 0;
@@ -62,7 +61,7 @@ const int SERVO_ANGLE_CLOSED = 170;
 const int SERVO_ANGLE_OPENED = 5;
 const int SERVO_ANGLE_OPENED_TOL[2] = {0, 10};
 const uint32_t SERVO_WAIT_TIME_MS = 2 * one_sec;
-const int TEMPERATURE_UPPER_LIMIT = 40; // If this limit is exceeded, vibration motor is forbidden to run (heats up)
+const int TEMPERATURE_UPPER_LIMIT = 43; // If this limit is exceeded, vibration motor is forbidden to run (heats up)
 const uint32_t CAM_ILLUMINATION_DURATION_MS = 3 * one_sec;
 
 //************** Define the IOs
@@ -541,7 +540,6 @@ void Flying()
             Serial.print(" Sec");
 
 
-            // TODO: Do you really want to print that every second?
             Serial.print(" - Phase: ");
             switch (phase)
             {
