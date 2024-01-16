@@ -15,7 +15,7 @@
 #include "Quest_CLI.h"
 #include <Servo.h>
 
-#define PHOTOS_ENABLED 0 // Should be 1 for the real program
+#define PHOTOS_ENABLED 1 // Should be 1 for the real program
 
 //////////////////////////////////////////////////////////////////////////
 //    This defines the timers used to control flight operations
@@ -540,8 +540,9 @@ void Flying()
             Serial.print(xs);
             Serial.print(" Sec");
 
-            //*************Printing phase we are in
-            Serial.print("We are in Phase: ");
+
+            // TODO: Do you really want to print that every second?
+            Serial.print(" - Phase: ");
             switch (phase)
             {
             case 0:
@@ -648,7 +649,7 @@ void Flying()
 
             if (PHOTOS_ENABLED)
             {
-                cmd_takeSpiphoto(); // Take photo
+                cmd_takeSpiphoto(); // Take photo -> takes 2631ms
             }
 
             // Reverse IOs to their previous state
