@@ -44,8 +44,7 @@ enum GLOBAL_PHASE
 
 //************** Define the duration of the phases
 const int Waiting_phase_duration = 30 * one_sec;
-// TODO: Adjust water phase to measurement with real pump action
-const int Water_phase_duration = 60 * one_sec + 6 * 2.631 * one_sec;  // Note: add offset to water phase duration from 10s-interval
+const int Water_phase_duration = 40 * one_sec + 6.6 * 2.631 * one_sec;  // This adds the non-pumping times during photo taking with a 6s-interval
 // TODO: Update to real times
 const int Mix_phase_duration = 1 * one_min;
 const int Grow_phase_duration = 1 * one_min;
